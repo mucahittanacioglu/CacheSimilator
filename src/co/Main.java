@@ -22,18 +22,51 @@ public class Main {
 
         while(reader.hasNextLine()) {
             inputString = reader.nextLine();
-            if(!checkCache(inputString))
+            if(!check(inputString))
                 addCache(inputString);
         }
         reader.close();
     }
-
-    private static boolean checkCache(String inputString) {
+    private static String getExtension(String arg,int offset){
+        for(int i =0;i<offset;i++){
+            arg = "0"+arg;
+        }
+        return arg;
+    }
+    private static boolean check(String inputString){
         char instruction= inputString.charAt(0);
         String[] input = inputString.substring(1).trim().split(",");
+        switch (instruction) {
+            case 'I':
+                checkCache(getExtension(Integer.toBinaryString(Integer.decode("0x"+input[0])),32-l1I.getBlockOffset()-l1I.getSetBit()-Integer.toBinaryString(Integer.decode("0x"+input[0])).length()),false);
+                break;
+            case 'L':
+            case 'M':
+            case 'S':
+            default:
+        }
+    return  false;
+    }
+    private static boolean checkCache(String inputString,boolean isData) {
+        int temp;
         for(int i = 0; i < (int)Math.pow(2,l1d.getSetBit()) ; i++){
             for(int j = 0; j < l1d.numberOfline ; j++){
-            if(instruction=='I')
+                if(!isData){
+                    if(l1I.getCacheTable()[i][j][2]!=null && l1I.getCacheTable()[i][j][2]=="1") {
+                        if (l1I.getCacheTable()[i][j][0].equalsIgnoreCase(inputString)) {
+                            if (l1I.getCacheTable()[i][j][1] != null) {
+                                temp = Integer.parseInt(l1I.getCacheTable()[i][j][1]) + 1;
+                                l1I.getCacheTable()[i][j][1] = temp + "";
+                            } else
+                                l1I.getCacheTable()[i][j][1] = "1";
+                            System.out.println("L1D hit,Place in L1D in set:" + i);
+                        } else {
+                            System.out.println("L1D miss");
+
+                        }
+                    }
+                }
+
             }
         }
         return false;
@@ -84,7 +117,7 @@ public class Main {
             this.setBlockOffset(blockOffset);
             this.setSetBit(setBit);
             this.setNumberOfline(numberOfline);
-            cacheTable = new String[(int)Math.pow(2,setBit)][numberOfline][3];
+            setCacheTable(new String[(int)Math.pow(2,setBit)][numberOfline][4]);
         }
         public int getBlockOffset() {
             return blockOffset;
@@ -111,6 +144,13 @@ public class Main {
         }
 
 
+        public String[][][] getCacheTable() {
+            return cacheTable;
+        }
+
+        public void setCacheTable(String[][][] cacheTable) {
+            this.cacheTable = cacheTable;
+        }
     }
     static class L1DataCache{
         private int blockOffset;
@@ -122,7 +162,7 @@ public class Main {
             this.setBlockOffset(blockOffset);
             this.setSetBit(setBit);
             this.setNumberOfline(numberOfline);
-            cacheTable = new String[(int)Math.pow(2,setBit)][numberOfline][3];
+            setCacheTable(new String[(int)Math.pow(2,setBit)][numberOfline][4]);
 
         }
         public int getBlockOffset() {
@@ -149,6 +189,13 @@ public class Main {
             this.numberOfline = numberOfline;
         }
 
+        public String[][][] getCacheTable() {
+            return cacheTable;
+        }
+
+        public void setCacheTable(String[][][] cacheTable) {
+            this.cacheTable = cacheTable;
+        }
     }
     static class L1InstrcCache{
         private int blockOffset;
@@ -160,7 +207,7 @@ public class Main {
             this.setBlockOffset(blockOffset);
             this.setSetBit(setBit);
             this.setNumberOfline(numberOfline);
-            cacheTable = new String[(int)Math.pow(2,setBit)][numberOfline][3];
+            setCacheTable(new String[(int)Math.pow(2,setBit)][numberOfline][4]);
         }
 
         public int getBlockOffset() {
@@ -185,6 +232,14 @@ public class Main {
 
         public void setNumberOfline(int numberOfline) {
             this.numberOfline = numberOfline;
+        }
+
+        public String[][][] getCacheTable() {
+            return cacheTable;
+        }
+
+        public void setCacheTable(String[][][] cacheTable) {
+            this.cacheTable = cacheTable;
         }
     }
 }
