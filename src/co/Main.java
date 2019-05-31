@@ -1,245 +1,354 @@
 package co;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.util.Scanner;
 
 public class Main {
-    private static L2Cache l2;
-    private static L1DataCache l1d;
-    private static L1InstrcCache l1I;
-    private static String inputString,url;
-    private static File Ram = new File("RAM.dat");
-
+    private static Cache L1DataCache,L1InstructionCache,L2Cache;
+    private static String ramString="";
     public static void main(String[] args) throws Exception {
-        l2= initL2Cache(args);
-        l1d = (L1DataCache)initL1Cache(args,true);
-        l1I= (L1InstrcCache) initL1Cache(args,false);
+        L1DataCache = new Cache();
+        L1InstructionCache = new Cache();
+        L2Cache = new Cache();
+        L1DataCache.setName("L1DataCache");
+        L1InstructionCache.setName("L1Instruction");
+        L2Cache.setName("L2Cache");
 
-        url= "traces/"+args[args.length-1];
-        File input = new File(url);
-        Scanner reader = new Scanner(input);
+        initCache(args,L1DataCache,L1InstructionCache,L2Cache);
+        testCache(L1DataCache);
+        testCache(L1InstructionCache);
+        testCache(L2Cache);
 
+        startReadingFile("traces/"+args[args.length-1],L1InstructionCache,L1DataCache,L2Cache);
+        System.err.println("After------------------------------------------");
 
-        while(reader.hasNextLine()) {
-            inputString = reader.nextLine();
-            if(!check(inputString))
-                addCache(inputString);
+        testCache(L1DataCache);
+        testCache(L1InstructionCache);
+        testCache(L2Cache);
+        printTotalHitMissAndEviction(L1DataCache);
+        printTotalHitMissAndEviction(L1InstructionCache);
+        printTotalHitMissAndEviction(L2Cache);
+    }
+
+    public static void startReadingFile(String arg,Cache L1I,Cache L1D,Cache L2)throws Exception {
+
+        String inputStr;
+        File ram= new File("ram.txt");
+        Scanner reader = new Scanner(ram);
+        while(reader.hasNextLine()){
+            ramString+=reader.nextLine();
         }
+        ramString=ramString.replaceAll("\\s+","");
         reader.close();
-    }
-    private static String getExtension(String arg,int offset){
-        for(int i =0;i<offset;i++){
-            arg = "0"+arg;
+
+        File traceFile= new File(arg);
+        Scanner reader2 = new Scanner(traceFile);
+        while(reader2.hasNextLine()){
+            inputStr=reader2.nextLine();
+            checkCaches(inputStr,L1I,L1D,L2);
         }
-        return arg;
+        reader2.close();
+
     }
-    private static boolean check(String inputString){
-        char instruction= inputString.charAt(0);
-        String[] input = inputString.substring(1).trim().split(",");
-        switch (instruction) {
+
+    public static void checkCaches(String inputStr,Cache L1I,Cache L1D,Cache L2) throws Exception {
+        char type = inputStr.charAt(0);
+        String adress="",size="",adressBinary="";
+        int adressVal=0;
+        size+=inputStr.charAt(12);
+
+        for(int i =2; inputStr.charAt(i)!=',';i++){
+            adress+=inputStr.charAt(i);
+        }
+
+        adressBinary=getBinaryForm(adress);
+
+        switch (type){
             case 'I':
-                checkCache(getExtension(Integer.toBinaryString(Integer.decode("0x"+input[0])),32-l1I.getBlockOffset()-l1I.getSetBit()-Integer.toBinaryString(Integer.decode("0x"+input[0])).length()),false);
+                checkDataTable(inputStr,L1InstructionCache,adressBinary,Integer.parseInt(size));
+                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size));
                 break;
             case 'L':
-            case 'M':
+                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size));
+                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size));
+                break;
             case 'S':
+                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size));
+                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size));
+                break;
+            case 'M':
+                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size));
+                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size));
+                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size));
+                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size));
+                break;
             default:
+                System.err.println("There is no such a  insturction as "+type);
+                break;
         }
-    return  false;
-    }
-    private static boolean checkCache(String inputString,boolean isData) {
-        int temp;
-        for(int i = 0; i < (int)Math.pow(2,l1d.getSetBit()) ; i++){
-            for(int j = 0; j < l1d.numberOfline ; j++){
-                if(!isData){
-                    if(l1I.getCacheTable()[i][j][2]!=null && l1I.getCacheTable()[i][j][2]=="1") {
-                        if (l1I.getCacheTable()[i][j][0].equalsIgnoreCase(inputString)) {
-                            if (l1I.getCacheTable()[i][j][1] != null) {
-                                temp = Integer.parseInt(l1I.getCacheTable()[i][j][1]) + 1;
-                                l1I.getCacheTable()[i][j][1] = temp + "";
-                            } else
-                                l1I.getCacheTable()[i][j][1] = "1";
-                            System.out.println("L1D hit,Place in L1D in set:" + i);
-                        } else {
-                            System.out.println("L1D miss");
 
-                        }
-                    }
+    }
+
+    private static String getBinaryForm(String adress)throws Exception {
+        String temp="";
+        for(int i = 0;i<adress.length();i++){
+
+            switch(adress.charAt(i)){
+                case '0':  temp+="0000"; break;
+                case '1':  temp+="0001"; break;
+                case '2':  temp+="0010"; break;
+                case '3':  temp+="0011"; break;
+                case '4':  temp+="0100"; break;
+                case '5':  temp+="0101"; break;
+                case '6':  temp+="0110"; break;
+                case '7':  temp+="0111"; break;
+                case '8':  temp+="1000"; break;
+                case '9':  temp+="1001"; break;
+                case 'a':  temp+="1010"; break;
+                case 'b':  temp+="1011"; break;
+                case 'c':  temp+="1100"; break;
+                case 'd':  temp+="1101"; break;
+                case 'e':  temp+="1110"; break;
+                case 'f':  temp+="1111"; break;
+            }
+        }
+        return temp;
+    }
+
+    private static void checkDataTable(String inputStr, Cache cache,String adressBinary,int size)throws Exception {
+        String tag = adressBinary.substring(0,adressBinary.length()-getLog2(cache.getBlockSize())-getLog2(cache.getNumberOfSets()));
+        int setIndex = binaryToInt(adressBinary.substring(tag.length(),adressBinary.length()-getLog2(cache.getBlockSize())));
+
+        for(int i = 0; i< cache.getLinePerSet();i++){
+            if((cache.getDataTable()[setIndex][i][0].equalsIgnoreCase(tag) && cache.getDataTable()[setIndex][i][1].equalsIgnoreCase("1"))){
+                System.out.println(cache.getName()+" hit.");
+                cache.setHits(cache.getHits()+1);
+                return;
+            }
+        }
+
+        System.out.println(cache.getName()+" miss.\n\n");
+        cache.setMiss(cache.getMiss()+1);
+        loadTocache(cache,tag,setIndex,inputStr,binaryToInt(adressBinary),size);
+    }
+
+    private static void loadTocache(Cache cache, String tag, int setIndex, String inputStr,int adressVal,int size)throws Exception {
+        String data="";
+        int loc;
+        if(adressVal==0)
+            loc=0;
+        else
+            loc= adressVal*2-2;
+        for(int i = loc;i<loc+2*size;i+=2){
+            data+=ramString.charAt(i);
+        }
+        for(int i = 0; i < cache.getLinePerSet();i++){
+            if( cache.getDataTable()[setIndex][i][1].equalsIgnoreCase("0")){
+                cache.getDataTable()[setIndex][i][0]=tag;
+                cache.getDataTable()[setIndex][i][1]="1";
+                cache.getDataTable()[setIndex][i][2]=data;
+                return;
+            }else{
+                System.out.println(cache.getName()+" eviction\n\n");
+                cache.setEviction(cache.getEviction()+1);
+            }
+
+        }
+
+
+    }
+
+    private static int binaryToInt(String binary){
+        int val=0;
+        for(int i = 0 ; i<binary.length();i++){
+            if(binary.charAt(i)=='1'){
+                val += Math.pow(2,binary.length()-1-i);
+            }
+        }
+        return  val;
+    }
+
+    private static int getLog2(int number){
+        int value=0;
+        while(number>=2){
+            number/=2;
+            value++;
+        }
+        return value;
+    }
+
+    public static void initCache(String argv[],Cache L1Data,Cache L1Instruction,Cache L2){
+
+        for(int i = 0; i < argv.length;i++) {
+            if (argv[i].equalsIgnoreCase( "-L2s" ))
+                L2.setNumberOfSets((int)Math.pow(2,Integer.parseInt(argv[i+1])));
+            else if (argv[i].equalsIgnoreCase("-L2E"))
+                L2.setLinePerSet(Integer.parseInt(argv[i + 1]));
+            else if (argv[i].equalsIgnoreCase("-L2b"))
+                L2.setBlockSize((int)Math.pow(2,Integer.parseInt(argv[i+1])));
+            else if (argv[i].equalsIgnoreCase("-L1s")) {
+                L1Data.setNumberOfSets((int)Math.pow(2,Integer.parseInt(argv[i+1])));
+                L1Instruction.setNumberOfSets((int)Math.pow(2,Integer.parseInt(argv[i+1])));
+            }else if (argv[i].equalsIgnoreCase("-L1E")){
+                L1Data.setLinePerSet(Integer.parseInt(argv[i+1]));
+                L1Instruction.setLinePerSet(Integer.parseInt(argv[i+1]));
+            }else if(argv[i].equalsIgnoreCase("-L1b")) {
+                L1Instruction.setBlockSize((int)Math.pow(2,Integer.parseInt(argv[i+1])));
+                L1Data.setBlockSize((int)Math.pow(2,Integer.parseInt(argv[i+1])));
+            }
+        }
+        initCacheTables(L1DataCache);
+        initCacheTables(L1InstructionCache);
+        initCacheTables(L2Cache);
+        initCacheWith0(L1DataCache);
+        initCacheWith0(L2Cache);
+        initCacheWith0(L1Instruction);
+    }
+
+    public static void initCacheTables(Cache cache){
+
+        int dim1=cache.getNumberOfSets(),dim2=cache.getLinePerSet();
+        int lineSize =1+1+1+1;//1 for tag par 1 for valid bit,1 block(data gonna store here),1 for time its in;
+
+        cache.setSizeOfEachLine(lineSize);
+
+        cache.setDataTable(new String[dim1][dim2][lineSize]);
+    }
+    public static void initCacheWith0(Cache cache){
+        for(int i = 0 ;i < cache.getNumberOfSets();i++){
+            for(int j = 0 ; j < cache.getLinePerSet();j++){
+                for(int k = 0 ; k < cache.getSizeOfEachLine();k++){
+                    cache.getDataTable()[i][j][k]="0";
                 }
 
             }
         }
-        return false;
     }
-
-    private static void addCache(String inputString) {
-    }
-
-    private static L2Cache initL2Cache(String[] args) {
-        int setSize=0,blockOffset=0,linePerSet=0;
-        for(int i = 0; i<args.length;i++){
-            if(args[i].equalsIgnoreCase("-L2s"))
-                setSize=Integer.parseInt(args[i+1]);
-            if(args[i].equalsIgnoreCase("-L2E"))
-                linePerSet=Integer.parseInt(args[i+1]);
-            if(args[i].equalsIgnoreCase("-L2b"))
-                blockOffset = Integer.parseInt(args[i+1]);
-
-        }
-        L2Cache temp = new L2Cache(blockOffset,setSize,linePerSet);
-        return temp;
-    }
-    private static Object initL1Cache(String[] args,boolean isData) {
-
-        int setSize=0,blockOffset=0,linePerSet=0;
-        for(int i = 0; i<args.length;i++){
-            if(args[i].equalsIgnoreCase("-L1s"))
-                setSize=Integer.parseInt(args[i+1]);
-            if(args[i].equalsIgnoreCase("-L1E"))
-                linePerSet=Integer.parseInt(args[i+1]);
-            if(args[i].equalsIgnoreCase("-L1b"))
-                blockOffset=Integer.parseInt(args[i+1]);
-        }
-
-            L1DataCache l1DataCache = new L1DataCache(blockOffset,setSize,linePerSet);
-            L1InstrcCache l1InstrcCache = new L1InstrcCache(blockOffset,setSize,linePerSet);
-
-            return isData ? l1DataCache:l1InstrcCache;
-    }
-
-    static class L2Cache{
-        private int blockOffset;
-        private int setBit;
-        private int numberOfline;
-        private String[][][] cacheTable;
-        L2Cache(){};
-        L2Cache(int blockOffset,int setBit,int numberOfline){
-            this.setBlockOffset(blockOffset);
-            this.setSetBit(setBit);
-            this.setNumberOfline(numberOfline);
-            setCacheTable(new String[(int)Math.pow(2,setBit)][numberOfline][4]);
-        }
-        public int getBlockOffset() {
-            return blockOffset;
-        }
-
-        public void setBlockOffset(int blockOffset) {
-            this.blockOffset = blockOffset;
-        }
-
-        public int getSetBit() {
-            return setBit;
-        }
-
-        public void setSetBit(int setBit) {
-            this.setBit = setBit;
-        }
-
-        public int getNumberOfline() {
-            return numberOfline;
-        }
-
-        public void setNumberOfline(int numberOfline) {
-            this.numberOfline = numberOfline;
-        }
+    public static void testCache(Cache cache){
 
 
-        public String[][][] getCacheTable() {
-            return cacheTable;
-        }
 
-        public void setCacheTable(String[][][] cacheTable) {
-            this.cacheTable = cacheTable;
+        System.out.println(cache.getName()+"-----------\n");
+
+        for(int i = 0 ;i < cache.getNumberOfSets();i++){
+            System.out.println("Set:"+i+"----\n");
+            for(int j = 0 ; j < cache.getLinePerSet();j++){
+                System.out.println("Line:"+j+"\n\t");
+                for(int k = 0 ; k < cache.getSizeOfEachLine();k++){
+                    System.out.print("\t"+cache.getDataTable()[i][j][k]);
+
+                }
+                System.out.println("\n");
+            }
         }
     }
-    static class L1DataCache{
-        private int blockOffset;
-        private int setBit;
-        private int numberOfline;
-        private String[][][] cacheTable;
-        L1DataCache(){};
-        L1DataCache(int blockOffset,int setBit,int numberOfline){
-            this.setBlockOffset(blockOffset);
-            this.setSetBit(setBit);
-            this.setNumberOfline(numberOfline);
-            setCacheTable(new String[(int)Math.pow(2,setBit)][numberOfline][4]);
-
-        }
-        public int getBlockOffset() {
-            return blockOffset;
-        }
-
-        public void setBlockOffset(int blockOffset) {
-            this.blockOffset = blockOffset;
-        }
-
-        public int getSetBit() {
-            return setBit;
-        }
-
-        public void setSetBit(int setBit) {
-            this.setBit = setBit;
-        }
-
-        public int getNumberOfline() {
-            return numberOfline;
-        }
-
-        public void setNumberOfline(int numberOfline) {
-            this.numberOfline = numberOfline;
-        }
-
-        public String[][][] getCacheTable() {
-            return cacheTable;
-        }
-
-        public void setCacheTable(String[][][] cacheTable) {
-            this.cacheTable = cacheTable;
-        }
+    public static void printTotalHitMissAndEviction(Cache cache){
+        System.out.println(cache.getName()+"----\n"+"Total Hits: "+cache.getHits()+"\nTotal Misses:"+cache.getMiss()+"\nTotal eviction:"+cache.getEviction());
     }
-    static class L1InstrcCache{
-        private int blockOffset;
-        private int setBit;
-        private int numberOfline;
-        private String[][][] cacheTable;
-        L1InstrcCache(){};
-        L1InstrcCache(int blockOffset,int setBit,int numberOfline){
-            this.setBlockOffset(blockOffset);
-            this.setSetBit(setBit);
-            this.setNumberOfline(numberOfline);
-            setCacheTable(new String[(int)Math.pow(2,setBit)][numberOfline][4]);
+
+    public static class Cache{
+        private String name;
+        private String[][][] dataTable;
+        private int sizeOfEachLine;
+        private int tagSize;
+        private int hits;
+        private int miss;
+        private int eviction;
+        private int numberOfSets;
+        private int linePerSet;
+        private int blockSize;
+
+        public Cache(String name, int numberOfSets, int linePerSet, int blockSize) {
+            this.setName(name);
+            this.setNumberOfSets(numberOfSets);
+            this.setLinePerSet(linePerSet);
+            this.setBlockSize(blockSize);
         }
 
-        public int getBlockOffset() {
-            return blockOffset;
+        public Cache(){}//Default constructor to create cahches empty first
+
+        public String getName() {
+            return name;
         }
 
-        public void setBlockOffset(int blockOffset) {
-            this.blockOffset = blockOffset;
+        public void setName(String name) {
+            this.name = name;
         }
 
-        public int getSetBit() {
-            return setBit;
+        public String[][][] getDataTable() {
+            return dataTable;
         }
 
-        public void setSetBit(int setBit) {
-            this.setBit = setBit;
+        public void setDataTable(String[][][] dataTable) {
+            this.dataTable = dataTable;
         }
 
-        public int getNumberOfline() {
-            return numberOfline;
+        public int getSizeOfEachLine() {
+            return sizeOfEachLine;
         }
 
-        public void setNumberOfline(int numberOfline) {
-            this.numberOfline = numberOfline;
+        public void setSizeOfEachLine(int sizeOfEachLine) {
+            this.sizeOfEachLine = sizeOfEachLine;
         }
 
-        public String[][][] getCacheTable() {
-            return cacheTable;
+        public int getTagSize() {
+            return tagSize;
         }
 
-        public void setCacheTable(String[][][] cacheTable) {
-            this.cacheTable = cacheTable;
+        public void setTagSize(int tagSize) {
+            this.tagSize = tagSize;
+        }
+
+        public int getHits() {
+            return hits;
+        }
+
+        public void setHits(int hits) {
+            this.hits = hits;
+        }
+
+        public int getMiss() {
+            return miss;
+        }
+
+        public void setMiss(int miss) {
+            this.miss = miss;
+        }
+
+        public int getEviction() {
+            return eviction;
+        }
+
+        public void setEviction(int eviction) {
+            this.eviction = eviction;
+        }
+
+        public int getNumberOfSets() {
+            return numberOfSets;
+        }
+
+        public void setNumberOfSets(int numberOfSets) {
+            this.numberOfSets = numberOfSets;
+        }
+
+        public int getLinePerSet() {
+            return linePerSet;
+        }
+
+        public void setLinePerSet(int linePerSet) {
+            this.linePerSet = linePerSet;
+        }
+
+        public int getBlockSize() {
+            return blockSize;
+        }
+
+        public void setBlockSize(int blockSize) {
+            this.blockSize = blockSize;
         }
     }
 }
+
+
