@@ -1,0 +1,8 @@
+L1Instruction-------------------------
+
+Set:0----
+
+	Line:0
+		Tag: 00000000000000001111010011000	Valid bit: 1	Data: 95	Insert time: 734405	
+	Line:1
+		Tag: 00000000000000000110000110110	Valid bit: 1	Data: CF	Insert time: 734373	

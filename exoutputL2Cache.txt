@@ -1,0 +1,20 @@
+L2Cache-------------------------
+
+Set:0----
+
+	Line:0
+		Tag: 0000000000000000011000011011	Valid bit: 1	Data: CF	Insert time: 791208	
+	Line:1
+		Tag: 0000000000000000111101001100	Valid bit: 1	Data: 95	Insert time: 791315	
+Set:1----
+
+	Line:0
+		Tag: 0	Valid bit: 0	Data: 0	Insert time: 0	
+	Line:1
+		Tag: 0	Valid bit: 0	Data: 0	Insert time: 0	
+
+L2Cache----
+Total Hits: 20
+Total Misses:100
+Total Evictions:84
+

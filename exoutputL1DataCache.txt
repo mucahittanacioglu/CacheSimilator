@@ -1,0 +1,14 @@
+L1DataCache-------------------------
+
+Set:0----
+
+	Line:0
+		Tag: 00000000000000111100000101110	Valid bit: 1	Data: 4f89d4b6	Insert time: 774442	
+	Line:1
+		Tag: 00000000000001011001001101110	Valid bit: 1	Data: 855A478B	Insert time: 774342	
+
+L1DataCache----
+Total Hits: 20
+Total Misses:59
+Total Evictions:43
+
