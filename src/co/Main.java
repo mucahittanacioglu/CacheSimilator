@@ -1,20 +1,24 @@
 package co;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
+import java.io.*;
 import java.util.Scanner;
 
 public class Main {
     private static Cache L1DataCache,L1InstructionCache,L2Cache;
     private static String ramString="";
+    private static long start = System.nanoTime();
     public static void main(String[] args) throws Exception {
+
+
+
         L1DataCache = new Cache();
         L1InstructionCache = new Cache();
         L2Cache = new Cache();
         L1DataCache.setName("L1DataCache");
         L1InstructionCache.setName("L1Instruction");
         L2Cache.setName("L2Cache");
+        String a ="denem123";
+
 
         initCache(args,L1DataCache,L1InstructionCache,L2Cache);
         testCache(L1DataCache);
@@ -30,6 +34,25 @@ public class Main {
         printTotalHitMissAndEviction(L1DataCache);
         printTotalHitMissAndEviction(L1InstructionCache);
         printTotalHitMissAndEviction(L2Cache);
+        writeNewRam();
+    }
+
+    private static void writeNewRam()throws Exception {
+        File ram = new File("newRam.txt");
+        ram.createNewFile();
+        BufferedWriter bw = new BufferedWriter(new FileWriter(ram));
+        int k = 0;
+        for(int i = 0;i<ramString.length();i++) {
+            if(k%4==0 && k!=0)
+                bw.write(" ");
+            if (k % 32 == 0 && k!=0 )
+                bw.newLine();
+            bw.write(ramString.charAt(i));
+            k++;
+
+
+        }
+        bw.close();
     }
 
     public static void startReadingFile(String arg,Cache L1I,Cache L1D,Cache L2)throws Exception {
@@ -55,9 +78,14 @@ public class Main {
 
     public static void checkCaches(String inputStr,Cache L1I,Cache L1D,Cache L2) throws Exception {
         char type = inputStr.charAt(0);
-        String adress="",size="",adressBinary="";
+        String adress="",size="",adressBinary="",data="";
         int adressVal=0;
         size+=inputStr.charAt(12);
+
+        if(type=='M'||type=='S')
+            for(int i = 15;i<inputStr.length();i++)
+                data+=inputStr.charAt(i);
+
 
         for(int i =2; inputStr.charAt(i)!=',';i++){
             adress+=inputStr.charAt(i);
@@ -67,22 +95,24 @@ public class Main {
 
         switch (type){
             case 'I':
-                checkDataTable(inputStr,L1InstructionCache,adressBinary,Integer.parseInt(size));
-                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size));
+                checkDataTable(inputStr,L1InstructionCache,adressBinary,Integer.parseInt(size),type,data);
+                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size),type,data);
                 break;
             case 'L':
-                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size));
-                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size));
+                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size),type,data);
+                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size),type,data);
                 break;
             case 'S':
-                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size));
-                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size));
+                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size),type,data);
+                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size),type,data);
                 break;
             case 'M':
-                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size));
-                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size));
-                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size));
-                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size));
+                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size),'L',data);
+                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size),'L',data);
+
+                checkDataTable(inputStr,L1DataCache,adressBinary,Integer.parseInt(size),'S',data);
+                checkDataTable(inputStr,L2Cache,adressBinary,Integer.parseInt(size),'S',data);
+
                 break;
             default:
                 System.err.println("There is no such a  insturction as "+type);
@@ -117,31 +147,54 @@ public class Main {
         return temp;
     }
 
-    private static void checkDataTable(String inputStr, Cache cache,String adressBinary,int size)throws Exception {
+    private static void checkDataTable(String inputStr, Cache cache,String adressBinary,int size,char type,String data)throws Exception {
+
         String tag = adressBinary.substring(0,adressBinary.length()-getLog2(cache.getBlockSize())-getLog2(cache.getNumberOfSets()));
         int setIndex = binaryToInt(adressBinary.substring(tag.length(),adressBinary.length()-getLog2(cache.getBlockSize())));
-
-        for(int i = 0; i< cache.getLinePerSet();i++){
+            System.out.print("");
+       for(int i = 0; i< cache.getLinePerSet();i++){
             if((cache.getDataTable()[setIndex][i][0].equalsIgnoreCase(tag) && cache.getDataTable()[setIndex][i][1].equalsIgnoreCase("1"))){
                 System.out.println(cache.getName()+" hit.");
                 cache.setHits(cache.getHits()+1);
+                if(type=='S') {
+                    writeRam(adressBinary, data);
+                    cache.getDataTable()[setIndex][i][2]=data;
+                }
                 return;
             }
         }
-
         System.out.println(cache.getName()+" miss.\n\n");
         cache.setMiss(cache.getMiss()+1);
+        if(type=='S') {
+            writeRam(adressBinary, data);
+            return;
+        }
+
         loadTocache(cache,tag,setIndex,inputStr,binaryToInt(adressBinary),size);
+    }
+
+    private static void writeRam(String adressBinary, String data) {
+        int adressVal = binaryToInt(adressBinary),loc;
+
+        char[] newram = ramString.toCharArray();
+
+        System.err.println("Updating ram...");
+        for(int i = adressVal;i<adressVal+data.length();i++){
+            newram[i]=data.charAt(i-adressVal);
+        }
+        ramString = String.valueOf(newram);
+
     }
 
     private static void loadTocache(Cache cache, String tag, int setIndex, String inputStr,int adressVal,int size)throws Exception {
         String data="";
+        float time;
         int loc;
         if(adressVal==0)
             loc=0;
         else
             loc= adressVal*2-2;
-        for(int i = loc;i<loc+2*size;i+=2){
+        for(int i = loc;i<loc+2*size;i++){
             data+=ramString.charAt(i);
         }
         for(int i = 0; i < cache.getLinePerSet();i++){
@@ -149,14 +202,25 @@ public class Main {
                 cache.getDataTable()[setIndex][i][0]=tag;
                 cache.getDataTable()[setIndex][i][1]="1";
                 cache.getDataTable()[setIndex][i][2]=data;
+                cache.getDataTable()[setIndex][i][3]= ((System.nanoTime()-start))/1000+"";
                 return;
-            }else{
-                System.out.println(cache.getName()+" eviction\n\n");
-                cache.setEviction(cache.getEviction()+1);
             }
-
         }
-
+        System.out.println(cache.getName()+" eviction\n\n");
+        cache.setEviction(cache.getEviction()+1);
+        int minIndex=0;
+        long min = Long.parseLong(cache.getDataTable()[setIndex][0][3]),temp;
+        for(int i = 0; i < cache.getLinePerSet();i++){
+            temp =Long.parseLong(cache.getDataTable()[setIndex][i][3]);
+            if(temp < min){
+                min =temp;
+                minIndex=i;
+            }
+        }
+        cache.getDataTable()[setIndex][minIndex][0]=tag;
+        cache.getDataTable()[setIndex][minIndex][1]="1";
+        cache.getDataTable()[setIndex][minIndex][2]=data;
+        cache.getDataTable()[setIndex][minIndex][3]= ((System.nanoTime()-start))/1000+"";
 
     }
 
@@ -245,7 +309,7 @@ public class Main {
         }
     }
     public static void printTotalHitMissAndEviction(Cache cache){
-        System.out.println(cache.getName()+"----\n"+"Total Hits: "+cache.getHits()+"\nTotal Misses:"+cache.getMiss()+"\nTotal eviction:"+cache.getEviction());
+        System.out.println(cache.getName()+"----\n"+"Total Hits: "+cache.getHits()+"\nTotal Misses:"+cache.getMiss()+"\nTotal eviction:"+cache.getEviction()+"\n\n");
     }
 
     public static class Cache{
