@@ -12,7 +12,7 @@ public class Main {
 
         //initilazing Caches with names
         L1DataCache = new Cache("L1DataCache");
-        L1InstructionCache = new Cache("L1DataCache");
+        L1InstructionCache = new Cache("L1InstructionCache");
         L2Cache = new Cache("L2Cache");
 
 
